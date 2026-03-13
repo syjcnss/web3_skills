@@ -7,6 +7,7 @@
 # Arguments:
 #   TX_HASH      Required. 0x-prefixed 32-byte transaction hash.
 #   CHAIN        Optional. Alchemy chain slug (default: eth-mainnet).
+#                Ignored when RPC_URL is set.
 #                Examples: eth-mainnet, arb-mainnet, base-mainnet, opt-mainnet,
 #                          polygon-mainnet, bnb-mainnet, eth-sepolia, arb-sepolia
 #   TRACER       Optional. callTracer | prestateTracer | (omit for raw opcode trace)
@@ -14,7 +15,9 @@
 #   onlyTopCall  Optional. Pass "onlyTopCall" as 4th arg to skip sub-calls (callTracer only).
 #
 # Environment:
-#   ALCHEMY_API_KEY  Override the default key (defaults to "docs-demo" if unset).
+#   RPC_URL          Full RPC endpoint URL. When set, CHAIN is ignored.
+#   ALCHEMY_API_KEY  Alchemy API key appended to the Alchemy URL (defaults to "docs-demo" if unset).
+#                    Ignored when RPC_URL is set.
 #
 # Output:
 #   Pretty-printed JSON trace to stdout. Non-zero exit on error.
@@ -39,12 +42,15 @@ if ! echo "$TX_HASH" | grep -qE '^0x[0-9a-fA-F]{64}$'; then
   exit 1
 fi
 
-# ── API key ───────────────────────────────────────────────────────────────────
-# Prefer env var; fall back to Alchemy's public demo key
-API_KEY="${ALCHEMY_API_KEY:-docs-demo}"
-
 # ── Build RPC URL ─────────────────────────────────────────────────────────────
-RPC_URL="https://${CHAIN}.g.alchemy.com/v2/${API_KEY}"
+# If the user provides a full RPC URL, use it directly and skip Alchemy key logic.
+# Otherwise, build the Alchemy URL from the chain slug + API key.
+if [[ -n "${RPC_URL:-}" ]]; then
+  echo "Using custom RPC URL: ${RPC_URL}" >&2
+else
+  API_KEY="${ALCHEMY_API_KEY:-docs-demo}"
+  RPC_URL="https://${CHAIN}.g.alchemy.com/v2/${API_KEY}"
+fi
 
 # ── Build params ──────────────────────────────────────────────────────────────
 # Build the options object for the tracer
@@ -62,8 +68,9 @@ fi
 
 # ── Cache ─────────────────────────────────────────────────────────────────────
 # Traces are immutable once mined, so a session-scoped cache is safe forever.
-# Cache key encodes chain + hash + tracer options so different queries don't collide.
-CACHE_KEY="${CHAIN}_${TX_HASH}_${TRACER}${ONLY_TOP:+_onlyTopCall}"
+# Cache key encodes the full RPC URL (or chain slug) + hash + tracer options
+# so different providers/chains/tracers don't collide.
+CACHE_KEY="${RPC_URL//[^a-zA-Z0-9]/_}_${TX_HASH}_${TRACER}${ONLY_TOP:+_onlyTopCall}"
 CACHE_DIR="${TMPDIR:-/tmp}/trace_tx_cache"
 CACHE_FILE="${CACHE_DIR}/${CACHE_KEY}.json"
 
@@ -78,7 +85,7 @@ fi
 # ── Make the request ──────────────────────────────────────────────────────────
 PAYLOAD="{\"jsonrpc\": \"2.0\", \"method\": \"debug_traceTransaction\", \"params\": ${PARAMS}, \"id\": 1}"
 
-echo "Fetching trace for ${TX_HASH} on ${CHAIN} (tracer: ${TRACER:-raw})..." >&2
+echo "Fetching trace for ${TX_HASH} (tracer: ${TRACER:-raw})..." >&2
 
 RESPONSE=$(curl -sS \
   --request POST \

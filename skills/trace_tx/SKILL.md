@@ -1,7 +1,7 @@
 ---
 name: trace_tx
 description: >
-  Fetches the full execution trace of an EVM transaction using Alchemy's debug_traceTransaction API.
+  Fetches the full execution trace of an EVM transaction using debug_traceTransaction API.
   Use this skill whenever the user wants to trace a transaction, inspect internal calls, debug a failed
   tx, check sub-calls or revert reasons, analyze gas usage per call, understand what a transaction
   actually did on-chain, or investigate MEV / sandwich attacks. Trigger even if the user just says
@@ -11,34 +11,44 @@ description: >
 
 # trace_tx
 
-Fetches the full execution trace for an EVM transaction via Alchemy's `debug_traceTransaction` JSON-RPC method. The trace reveals the complete call tree: every internal CALL/DELEGATECALL/CREATE, gas consumed at each step, input/output data, and any revert reasons.
+Fetches the full execution trace for an EVM transaction via `debug_traceTransaction` JSON-RPC method. The trace reveals the complete call tree: every internal CALL/DELEGATECALL/CREATE, gas consumed at each step, input/output data, and any revert reasons.
 
 ## Quick start
 
-Use the bundled script — it handles chain selection, API key injection, and pretty-printing:
+Use the bundled script — it handles RPC selection, API key injection, caching, and pretty-printing:
 
 ```bash
-~/.claude/skills/trace_tx/scripts/trace_tx.sh <TX_HASH> [CHAIN] [TRACER]
+~/.claude/skills/trace_tx/scripts/trace_tx.sh <TX_HASH> [CHAIN] [TRACER] [onlyTopCall]
 ```
 
 **Examples:**
 ```bash
-# Trace on Ethereum mainnet (default), callTracer
+# Trace on Ethereum mainnet (default)
 ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123...
 
-# Trace on Arbitrum
+# Trace on Arbitrum by chain name
 ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... arb-mainnet
 
-# Use prestateTracer to see pre-state of all touched accounts
-~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... eth-mainnet prestateTracer
+# Use a custom RPC URL — CHAIN argument is not needed
+RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123...
+
+# prestateTracer via custom RPC
+RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... "" prestateTracer
 
 # Only top-level call (faster, less noise)
 ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... eth-mainnet callTracer onlyTopCall
 ```
 
-## API Key
+## RPC provider
 
-The script uses `ALCHEMY_API_KEY` from the environment if set, otherwise falls back to `docs-demo` (Alchemy's public demo key).
+**If the user provides a full RPC URL** (e.g. their own node, Infura, QuickNode, etc.), pass it via the `RPC_URL` environment variable. CHAIN is ignored when `RPC_URL` is set.
+
+**Otherwise**, the script builds the Alchemy URL from the CHAIN slug. It uses `ALCHEMY_API_KEY` from the environment, falling back to `docs-demo` (Alchemy's public demo key) if unset.
+
+When to use `RPC_URL`:
+- User says "use my own node at https://..."
+- User provides a non-Alchemy endpoint (Infura, QuickNode, Tenderly, etc.)
+- User wants to avoid Alchemy entirely
 
 ## Caching
 
