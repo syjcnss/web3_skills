@@ -1,5 +1,5 @@
 ---
-name: trace_tx
+name: trace-tx
 description: >
   Fetches the full execution trace of an EVM transaction using debug_traceTransaction API.
   Use this skill whenever the user wants to trace a transaction, inspect internal calls, debug a failed
@@ -9,7 +9,7 @@ description: >
   "show me the call tree", or "get the internal calls for 0x...".
 ---
 
-# trace_tx
+# trace-tx
 
 Fetches the full execution trace for an EVM transaction via `debug_traceTransaction` JSON-RPC method. The trace reveals the complete call tree: every internal CALL/DELEGATECALL/CREATE, gas consumed at each step, input/output data, and any revert reasons.
 
@@ -18,25 +18,25 @@ Fetches the full execution trace for an EVM transaction via `debug_traceTransact
 Use the bundled script — it handles RPC selection, API key injection, caching, and pretty-printing:
 
 ```bash
-~/.claude/skills/trace_tx/scripts/trace_tx.sh <TX_HASH> [CHAIN] [TRACER] [onlyTopCall]
+~/.claude/skills/trace-tx/scripts/trace_tx.sh <TX_HASH> [CHAIN] [TRACER] [onlyTopCall]
 ```
 
 **Examples:**
 ```bash
 # Trace on Ethereum mainnet (default)
-~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123...
+~/.claude/skills/trace-tx/scripts/trace_tx.sh 0xabc123...
 
 # Trace on Arbitrum by chain name
-~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... arb-mainnet
+~/.claude/skills/trace-tx/scripts/trace_tx.sh 0xabc123... arb-mainnet
 
 # Use a custom RPC URL — CHAIN argument is not needed
-RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123...
+RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace-tx/scripts/trace_tx.sh 0xabc123...
 
 # prestateTracer via custom RPC
-RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... "" prestateTracer
+RPC_URL=https://my-node.example.com/rpc ~/.claude/skills/trace-tx/scripts/trace_tx.sh 0xabc123... "" prestateTracer
 
 # Only top-level call (faster, less noise)
-~/.claude/skills/trace_tx/scripts/trace_tx.sh 0xabc123... eth-mainnet callTracer onlyTopCall
+~/.claude/skills/trace-tx/scripts/trace_tx.sh 0xabc123... eth-mainnet callTracer onlyTopCall
 ```
 
 ## RPC provider
