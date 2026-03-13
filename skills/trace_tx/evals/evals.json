@@ -1,0 +1,69 @@
+{
+  "skill_name": "trace_tx",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Can you trace this transaction on Ethereum mainnet and tell me what internal calls it made? 0x8fc90a6c3ee3001cdcbbb685b4fbe67b1fa2bec575b15b0395fea5540d0901ae",
+      "expected_output": "The agent should run the trace_tx script on eth-mainnet with callTracer, then parse and summarize the call tree — listing the top-level contract called, all sub-calls (from/to addresses, call types like STATICCALL/DELEGATECALL), and total gas used.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Fetches the trace via debug_traceTransaction (uses Alchemy RPC or the bundled script)",
+          "type": "qualitative"
+        },
+        {
+          "text": "Identifies at least 3 distinct contract addresses in the call tree",
+          "type": "qualitative"
+        },
+        {
+          "text": "Correctly names at least one non-CALL frame type (STATICCALL or DELEGATECALL)",
+          "type": "qualitative"
+        },
+        {
+          "text": "Reports total gasUsed for the top-level transaction",
+          "type": "qualitative"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "I have a transaction that reverted. Can you trace it and find out why? Here's the hash: 0x8fc90a6c3ee3001cdcbbb685b4fbe67b1fa2bec575b15b0395fea5540d0901ae (this is on Arbitrum)",
+      "expected_output": "The agent should run the trace on arb-mainnet, check for 'error' and 'revertReason' fields in the trace output, and report either the revert reason or that the transaction did not revert on that chain.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Targets Arbitrum (arb-mainnet) rather than Ethereum mainnet",
+          "type": "qualitative"
+        },
+        {
+          "text": "Explicitly checks for 'error' and/or 'revertReason' fields in the trace",
+          "type": "qualitative"
+        },
+        {
+          "text": "Gives a clear verdict: either reports the revert reason, or states that the transaction succeeded (did not revert)",
+          "type": "qualitative"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Show me the ETH value flows in this Ethereum transaction: 0x8fc90a6c3ee3001cdcbbb685b4fbe67b1fa2bec575b15b0395fea5540d0901ae — I want to know which addresses sent ETH to which other addresses.",
+      "expected_output": "The agent should run callTracer on eth-mainnet, parse all CALL frames, filter for non-zero 'value' fields, convert hex values to ETH, and present a list of ETH transfers between addresses.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Fetches callTracer trace and filters CALL frames by non-zero value field",
+          "type": "qualitative"
+        },
+        {
+          "text": "Converts hex wei values to a human-readable amount (ETH or at least decimal wei)",
+          "type": "qualitative"
+        },
+        {
+          "text": "Presents at least one from→to transfer pair with an amount, or correctly reports no ETH was transferred",
+          "type": "qualitative"
+        }
+      ]
+    }
+  ]
+}
