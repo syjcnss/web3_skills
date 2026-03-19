@@ -36,21 +36,4 @@ Base format: `https://<CHAIN_SLUG>.g.alchemy.com/v2/<API_KEY>`
 | `worldchain-mainnet`  | World Chain Mainnet         |
 | `zora-mainnet`        | Zora Mainnet                |
 | `zora-sepolia`        | Zora Sepolia                |
-| `solana-mainnet`      | Solana Mainnet (non-EVM)    |
-| `solana-devnet`       | Solana Devnet (non-EVM)     |
 
-> Note: `debug_traceTransaction` is only available on EVM-compatible chains. Solana uses different APIs.
-
-## Common chain name → slug mapping
-
-When a user mentions a chain by its common name, map it:
-
-| User says              | Use slug              |
-|------------------------|-----------------------|
-| "Ethereum" / "ETH"     | `eth-mainnet`         |
-| "Arbitrum" / "Arb"     | `arb-mainnet`         |
-| "Base"                 | `base-mainnet`        |
-| "Optimism" / "OP"      | `opt-mainnet`         |
-| "Polygon" / "MATIC"    | `polygon-mainnet`     |
-| "BSC" / "BNB Chain"    | `bnb-mainnet`         |
-| "Sepolia"              | `eth-sepolia`         |

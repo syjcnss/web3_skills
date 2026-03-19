@@ -1,38 +1,44 @@
 #!/usr/bin/env bash
-# trace_tx.sh — Fetch a transaction trace via Alchemy debug_traceTransaction
+# trace_tx.sh — Fetch a transaction trace via debug_traceTransaction
 #
 # Usage:
-#   trace_tx.sh <TX_HASH> [CHAIN] [TRACER] [onlyTopCall]
+#   trace_tx.sh [-o <output_file>] <TX_HASH> <RPC_URL> [TRACER] [onlyTopCall]
+#
+# Options:
+#   -o <file>    Write JSON output to <file> instead of stdout.
 #
 # Arguments:
 #   TX_HASH      Required. 0x-prefixed 32-byte transaction hash.
-#   CHAIN        Optional. Alchemy chain slug (default: eth-mainnet).
-#                Ignored when RPC_URL is set.
-#                Examples: eth-mainnet, arb-mainnet, base-mainnet, opt-mainnet,
-#                          polygon-mainnet, bnb-mainnet, eth-sepolia, arb-sepolia
+#   RPC_URL      Required. Full RPC endpoint URL.
 #   TRACER       Optional. callTracer | prestateTracer | (omit for raw opcode trace)
 #                Default: callTracer
 #   onlyTopCall  Optional. Pass "onlyTopCall" as 4th arg to skip sub-calls (callTracer only).
 #
-# Environment:
-#   RPC_URL          Full RPC endpoint URL. When set, CHAIN is ignored.
-#   ALCHEMY_API_KEY  Alchemy API key appended to the Alchemy URL (defaults to "docs-demo" if unset).
-#                    Ignored when RPC_URL is set.
-#
 # Output:
-#   Pretty-printed JSON trace to stdout. Non-zero exit on error.
+#   Pretty-printed JSON trace to stdout (or file if -o is given). Non-zero exit on error.
 
 set -euo pipefail
 
+# ── Options ───────────────────────────────────────────────────────────────────
+OUTPUT_FILE=""
+while getopts ":o:" opt; do
+  case $opt in
+    o) OUTPUT_FILE="$OPTARG" ;;
+    :) echo "ERROR: -$OPTARG requires an argument." >&2; exit 1 ;;
+    \?) echo "ERROR: Unknown option -$OPTARG." >&2; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 # ── Arguments ─────────────────────────────────────────────────────────────────
 TX_HASH="${1:-}"
-CHAIN="${2:-eth-mainnet}"
+RPC_URL="${2:-}"
 TRACER="${3:-callTracer}"
 ONLY_TOP="${4:-}"
 
 if [[ -z "$TX_HASH" ]]; then
   echo "ERROR: TX_HASH is required." >&2
-  echo "Usage: $0 <TX_HASH> [CHAIN] [TRACER] [onlyTopCall]" >&2
+  echo "Usage: $0 [-o <output_file>] <TX_HASH> <RPC_URL> [TRACER] [onlyTopCall]" >&2
   exit 1
 fi
 
@@ -42,14 +48,10 @@ if ! echo "$TX_HASH" | grep -qE '^0x[0-9a-fA-F]{64}$'; then
   exit 1
 fi
 
-# ── Build RPC URL ─────────────────────────────────────────────────────────────
-# If the user provides a full RPC URL, use it directly and skip Alchemy key logic.
-# Otherwise, build the Alchemy URL from the chain slug + API key.
-if [[ -n "${RPC_URL:-}" ]]; then
-  echo "Using custom RPC URL: ${RPC_URL}" >&2
-else
-  API_KEY="${ALCHEMY_API_KEY:-docs-demo}"
-  RPC_URL="https://${CHAIN}.g.alchemy.com/v2/${API_KEY}"
+if [[ -z "$RPC_URL" ]]; then
+  echo "ERROR: RPC_URL is required." >&2
+  echo "Usage: $0 [-o <output_file>] <TX_HASH> <RPC_URL> [TRACER] [onlyTopCall]" >&2
+  exit 1
 fi
 
 # ── Build params ──────────────────────────────────────────────────────────────
@@ -66,44 +68,44 @@ else
   PARAMS="[\"${TX_HASH}\"]"
 fi
 
-# ── Cache ─────────────────────────────────────────────────────────────────────
-# Traces are immutable once mined, so a session-scoped cache is safe forever.
-# Cache key encodes the full RPC URL (or chain slug) + hash + tracer options
-# so different providers/chains/tracers don't collide.
-CACHE_KEY="${RPC_URL//[^a-zA-Z0-9]/_}_${TX_HASH}_${TRACER}${ONLY_TOP:+_onlyTopCall}"
-CACHE_DIR="${TMPDIR:-/tmp}/trace_tx_cache"
-CACHE_FILE="${CACHE_DIR}/${CACHE_KEY}.json"
-
-mkdir -p "$CACHE_DIR"
-
-if [[ -f "$CACHE_FILE" ]]; then
-  echo "Cache hit — skipping RPC call (${CACHE_FILE})" >&2
-  cat "$CACHE_FILE"
-  exit 0
-fi
-
 # ── Make the request ──────────────────────────────────────────────────────────
 PAYLOAD="{\"jsonrpc\": \"2.0\", \"method\": \"debug_traceTransaction\", \"params\": ${PARAMS}, \"id\": 1}"
 
 echo "Fetching trace for ${TX_HASH} (tracer: ${TRACER:-raw})..." >&2
 
-RESPONSE=$(curl -sS \
-  --request POST \
-  --url "$RPC_URL" \
-  --header "Content-Type: application/json" \
-  --header "Origin: https://www.alchemy.com" \
-  --data "$PAYLOAD")
+do_request() {
+  local url="$1"
+  curl -sS \
+    --request POST \
+    --url "$url" \
+    --header "Content-Type: application/json" \
+    --data "$PAYLOAD"
+}
+
+RESPONSE=$(do_request "$RPC_URL")
 
 # ── Check for RPC-level errors ────────────────────────────────────────────────
+# Guard against non-JSON responses (plain-text errors from the provider)
+if ! echo "$RESPONSE" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+  echo "RPC ERROR (non-JSON response):" >&2
+  echo "$RESPONSE" >&2
+  exit 1
+fi
+
 if echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'error' not in d else 1)" 2>/dev/null; then
-  # Success — pretty-print, write to cache, and output
+  # Success — pretty-print and output
   RESULT=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 result = d.get('result', d)
 print(json.dumps(result, indent=2))
 ")
-  echo "$RESULT" | tee "$CACHE_FILE"
+  if [[ -n "$OUTPUT_FILE" ]]; then
+    printf '%s\n' "$RESULT" > "$OUTPUT_FILE"
+    echo "Trace written to ${OUTPUT_FILE}" >&2
+  else
+    printf '%s\n' "$RESULT"
+  fi
 else
   # Print the error message clearly (don't cache errors)
   echo "RPC ERROR:" >&2
