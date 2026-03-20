@@ -109,17 +109,25 @@ fetch_from_etherscan() {
   if [[ "${source}" == \{\{* ]]; then
     # Standard JSON input wrapped in extra braces
     inner="${source:1:${#source}-2}"
-    echo "${inner}" | jq -r '.sources | to_entries[] | "\(.key)\t\(.value.content)"' 2>/dev/null | \
-    while IFS=$'\t' read -r filepath content; do
-      local target="${OUT_DIR}/${filepath}"
+    echo "${inner}" | jq -c '.sources | to_entries[]' 2>/dev/null | \
+    while IFS= read -r entry; do
+      local filepath content target
+      filepath=$(printf '%s' "${entry}" | jq -r '.key')
+      [[ -z "${filepath}" ]] && continue
+      content=$(printf '%s' "${entry}" | jq -r '.value.content // ""')
+      target="${OUT_DIR}/${filepath}"
       mkdir -p "$(dirname "${target}")"
       printf '%s' "${content}" > "${target}"
     done
   elif echo "${source}" | jq -e '.sources' >/dev/null 2>&1; then
     # Plain JSON standard input
-    echo "${source}" | jq -r '.sources | to_entries[] | "\(.key)\t\(.value.content)"' 2>/dev/null | \
-    while IFS=$'\t' read -r filepath content; do
-      local target="${OUT_DIR}/${filepath}"
+    echo "${source}" | jq -c '.sources | to_entries[]' 2>/dev/null | \
+    while IFS= read -r entry; do
+      local filepath content target
+      filepath=$(printf '%s' "${entry}" | jq -r '.key')
+      [[ -z "${filepath}" ]] && continue
+      content=$(printf '%s' "${entry}" | jq -r '.value.content // ""')
+      target="${OUT_DIR}/${filepath}"
       mkdir -p "$(dirname "${target}")"
       printf '%s' "${content}" > "${target}"
     done
