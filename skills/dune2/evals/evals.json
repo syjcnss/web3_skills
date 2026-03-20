@@ -1,0 +1,68 @@
+{
+  "skill_name": "dune2",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Show me all USDC transfers to or from 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 (Vitalik's address) on Base in the last 7 days. Use Dune to query this.",
+      "expected_output": "A Dune query that correctly searches tokens.transfers (or erc20_base.evt_Transfer) filtering by the address on the base chain with a 7-day window.",
+      "files": [],
+      "expectations": [
+        "The query uses tokens.transfers or erc20_base.evt_Transfer rather than raw logs",
+        "The query filters for address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+        "The query filters for the base blockchain (blockchain = 'base' or uses base chain table)",
+        "A time filter of 7 days (or narrower) is applied",
+        "The dune CLI command executes successfully without a fatal error"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "When was the USDC contract 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 deployed on Ethereum and who deployed it? Use Dune to find the creation transaction.",
+      "expected_output": "A Dune query against ethereum.creation_traces returning deployer, block_time, and tx_hash.",
+      "files": [],
+      "expectations": [
+        "The query uses a creation_traces table (not transactions or logs)",
+        "The query filters for address 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "The result includes or requests block_time and deployer/from columns",
+        "The dune CLI command executes successfully and returns at least one row"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Find all transactions that called the transfer function (selector 0xa9059cbb) on the USDT contract 0xdac17f958d2ee523a2206206994597c13d831ec7 on Ethereum in the last 3 days. Use Dune.",
+      "expected_output": "A Dune query against ethereum.traces or ethereum.transactions filtering by contract address, 0xa9059cbb selector, and 3-day window.",
+      "files": [],
+      "expectations": [
+        "The query filters for contract address 0xdac17f958d2ee523a2206206994597c13d831ec7",
+        "The query filters by function selector 0xa9059cbb (either via SUBSTR on input/data or decoded call table)",
+        "A time filter of 3 days (or narrower) is applied",
+        "The query uses traces or transactions table, not logs",
+        "The dune CLI command executes successfully without a fatal error"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Get all Transfer events emitted by the WETH contract 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 on Ethereum in the last 24 hours. Use Dune to filter the logs.",
+      "expected_output": "A Dune query against ethereum.logs (or erc20_ethereum.evt_Transfer) filtering by WETH contract address, Transfer topic0, and 24-hour window.",
+      "files": [],
+      "expectations": [
+        "The query uses ethereum.logs or erc20_ethereum.evt_Transfer",
+        "The query filters for WETH contract 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "The query filters by the Transfer event (either topic0 = 0xddf252ad... or uses decoded evt_Transfer table)",
+        "A time filter of 24 hours (or narrower) is applied",
+        "The dune CLI command executes successfully without a fatal error"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I found this address in a transaction and want to know who it belongs to: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045. Can you look up any labels or names for it on Dune?",
+      "expected_output": "A Dune query against one or more labels tables (labels.ens, labels.owner_addresses, labels.ofac_sanctioned_ethereum) that returns the name/owner info for the address. Should return 'vitalik.eth' from labels.ens.",
+      "files": [],
+      "expectations": [
+        "The query uses at least one of: labels.ens, labels.owner_addresses, or labels.ofac_sanctioned_ethereum",
+        "The query filters for address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+        "The dune CLI command executes successfully and returns at least one row",
+        "The result includes a name or owner field with a non-null value (e.g. 'vitalik.eth' or 'sushiswap')"
+      ]
+    }
+  ]
+}
